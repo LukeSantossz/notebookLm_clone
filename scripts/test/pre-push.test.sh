@@ -55,6 +55,23 @@ else
   ok pre_push_shim_dispatches_to_submodule_runner
 fi
 
+# pre_push_shim_dispatches_to_submodule_runner (dry run, real runner)
+# The stub above proves dispatch; this proves the real runner is reached and
+# resolves its chain. R2_DRYRUN=1 prints the resolved command and calls no
+# backend, so this stays a read-only check against the real submodule.
+if [ ! -f "$REPO_ROOT/my-framework/scripts/r2-review.sh" ]; then
+  no pre_push_shim_dryrun_resolves_real_chain "the my-framework submodule is not initialized"
+else
+  out=$(cd "$REPO_ROOT" && R2_DRYRUN=1 bash .githooks/pre-push 2>&1); code=$?
+  if [ "$code" -ne 0 ]; then
+    no pre_push_shim_dryrun_resolves_real_chain "expected exit 0, got $code: $out"
+  elif ! printf '%s' "$out" | grep -q 'codex review --base'; then
+    no pre_push_shim_dryrun_resolves_real_chain "the resolved backend chain was not printed: $out"
+  else
+    ok pre_push_shim_dryrun_resolves_real_chain
+  fi
+fi
+
 # pre_push_shim_propagates_runner_failure
 # A gate that swallows the reviewer's verdict is not a gate.
 repo="$(new_repo failure 3)"
