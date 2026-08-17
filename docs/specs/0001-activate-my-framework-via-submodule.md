@@ -1,0 +1,158 @@
+# SPEC: chore: activate my-framework via a submodule shim
+
+## Problem
+
+`notebookLm_clone` carries the `my-framework` standards as a submodule, but the
+framework's activation path assumes copy-adoption, so none of its gates are
+active in this repository.
+
+## Design Decision
+
+Keep the submodule as the single source of truth for the standards and add a
+thin, repo-local activation layer that points at it. The repository gets its own
+`.githooks/pre-push` that invokes `my-framework/scripts/r2-review.sh` and its own
+`CLAUDE.md` that resolves the standards to
+`my-framework/docs/standards/INDEX.md`; `core.hooksPath` is set to `.githooks`.
+Upstream's hook silently `exit 0`s when the runner is absent
+(`my-framework/.githooks/pre-push:10`); the shim instead fails loudly, because a
+submodule that was never initialized is exactly the case where a silent skip
+would hide a dead gate. Machine-global state (`--reviewer`, `--statusline`) is
+already applied and is not touched.
+
+## Alternatives Considered
+
+- **Copy-adoption, as `README.md:51` prescribes.** Rejected: it duplicates
+  `docs/standards/`, `docs/adr/`, `docs/agents/` and `scripts/` into this
+  repository, freezing them at v0.3.0 and making `git submodule update --remote`
+  meaningless. The submodule was the Developer's explicit choice precisely to
+  keep one updatable source.
+- **Point `core.hooksPath` straight at `my-framework/.githooks`.** Rejected:
+  that hook resolves `runner="$repo_root/scripts/r2-review.sh"`, which under a
+  submodule layout resolves to `notebookLm_clone/scripts/r2-review.sh` — a path
+  that does not exist — so it would `exit 0` and the R2 gate would never run,
+  without any message.
+- **Patch the hook inside the submodule.** Rejected: it puts local divergence in
+  a pinned upstream checkout, which the next `--remote` update discards.
+
+## Scope
+
+- Includes:
+  - `.githooks/pre-push` — shim invoking the submodule runner, erroring when it
+    is missing.
+  - `CLAUDE.md` at the repo root — the framework's binding-standards block with
+    the path adjusted to `my-framework/docs/standards/INDEX.md`, as
+    `my-framework/CLAUDE.md:22` instructs.
+  - `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/issue.md`.
+    Amended during implementation from "copied verbatim": R2 found the copies
+    point at a root `docs/standards/` this repository deliberately does not
+    have, so every `docs/standards/...` reference in them is repointed at
+    `my-framework/docs/standards/...`.
+  - `AGENTS.md` at the repo root — a shim carrying the Reviewer role and
+    redirecting to `my-framework/AGENTS.md` and the submodule's standards.
+    Amended into scope during implementation: the `codex` adapter runs
+    `codex review` in the parent repository, where an agentic reviewer looks for
+    `AGENTS.md` at the root, so without it the R2 backend reviews with no role
+    definition and no binding standards. R2 found this by reviewing this very
+    branch without them.
+  - `git config core.hooksPath .githooks` (repo-local).
+  - The five triage labels created on `LukeSantossz/notebookLm_clone` via `gh`.
+  - `.gitattributes` pinning `*.sh` and `.githooks/*` to LF. Amended into scope
+    during implementation: this machine sets `core.autocrlf=true`, so without it
+    a fresh clone checks the shim out with CRLF and its shebang fails with
+    "bad interpreter" — the activation this spec delivers would arrive broken.
+- Does NOT include:
+  - `CONTEXT.md` — `my-framework/docs/agents/domain.md` says it is created
+    lazily once real domain terms are resolved, and this repository has no code
+    yet.
+  - `.github/workflows/ci.yml` — it runs `scripts/test/*.sh` of the framework,
+    which do not exist here; the submodule's own CI already guards the standards
+    tree, and this repository has nothing to test yet.
+  - Any copy of `docs/standards/`, `docs/adr/`, `docs/agents/`, or the
+    framework's `scripts/` into the repo root. The root `AGENTS.md` is a shim
+    that redirects, not a copy of the submodule's.
+  - Any change inside the `my-framework/` working tree, or to the pinned commit
+    `bfcd081`.
+  - Any change to machine-global config (`--global` `r2.*`, status line) —
+    already applied.
+  - `git push`.
+
+## Acceptance Criteria
+
+- `hooks_path_resolves_to_repo_local_githooks`: `git config --get
+  core.hooksPath` returns `.githooks`.
+- `pre_push_shim_dispatches_to_submodule_runner`: running the shim with
+  `R2_DRYRUN=1` prints the resolved backend chain from
+  `my-framework/scripts/r2-review.sh` and exits 0.
+- `pre_push_shim_errors_when_submodule_uninitialized`: with the runner path
+  absent, the shim exits non-zero and names the missing file, rather than
+  exiting 0.
+- `pre_push_shim_honors_bypass`: `SKIP_R2_REVIEW=1` makes the shim exit 0
+  without invoking a backend.
+- `claude_md_standards_path_exists`: the path named in the root `CLAUDE.md`
+  resolves to an existing `my-framework/docs/standards/INDEX.md`.
+- `triage_labels_present`: `gh label list --json name` contains all five of
+  `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
+- `submodule_tree_passes_docs_consistency`: run with the working directory
+  inside `my-framework/`, `bash scripts/test/docs-consistency.sh` reports
+  `all checks passed` and exits 0. The working directory is part of the
+  criterion: the script resolves its target through `git rev-parse
+  --show-toplevel`, so invoking it from the parent root resolves to this
+  repository, finds no `docs/standards/INDEX.md`, and exits 0 having checked
+  nothing — a pass that means the opposite of what it appears to mean.
+- `no_instruction_points_at_an_absent_root_standards_dir`: in the files that
+  tell a reader or an agent where to look — `.github/`, `AGENTS.md`,
+  `CLAUDE.md` — every `docs/standards/` occurrence is prefixed with
+  `my-framework/`. Scoped to those files on purpose: `docs/specs/` and
+  `docs/adr/` name the bare path as prose, describing the copy-adoption layout
+  this repository rejected, and rewriting that prose would falsify the record.
+- `reviewer_instructions_reachable_from_repo_root`: `AGENTS.md` exists at the
+  root and names both `my-framework/AGENTS.md` and
+  `my-framework/docs/standards/INDEX.md`.
+- `hook_and_tests_are_lf_and_executable`: `git ls-files --eol .githooks/pre-push`
+  reports `w/lf` and `git ls-files -s` reports mode `100755` for the hook and
+  its test suite.
+
+## Reproducibility
+
+Run from the repository root, `C:\Users\lucas\OneDrive\Desktop\notebookLm_clone`:
+
+```sh
+bash scripts/test/pre-push.test.sh    # the shim's behavior
+bash scripts/test/activation.test.sh  # this repository's activation state
+```
+
+Every Acceptance Criterion above is asserted by one of those two suites, named
+after it. `triage_labels_present` needs an authenticated `gh` and reports as
+skipped without one; every other criterion runs offline.
+
+No randomness. Versions: git 2.54.0.windows.1, bash 5.3.9 (Cygwin), gh 2.93.0,
+node v26.2.0, codex-cli 0.147.0, submodule pinned at `bfcd081` (`v0.3.0`).
+
+## Recorded Process Deviation
+
+Commit `f75cd8d` introduces `.githooks/pre-push` and its test suite together.
+The red-green order was followed in the working tree — the suite was written
+first and observed failing 0/6 before the shim existed — but not in the commit
+history, and `code_conventions.md:71` counts an implementation commit without a
+preceding failing-test commit as a process violation regardless of what happened
+before the commit. R2 (`codex` / `gpt-5.6-terra`) raised it.
+
+It is recorded rather than rewritten. This follows the precedent the framework
+sets for itself in its own README, where two commits violating its
+no-AI-attribution rule are left in place on the reasoning that rewriting
+published history costs more than the defect it corrects, and that the honest
+record of the violation is itself useful. The guard against recurrence is this
+note, not a rewrite.
+
+## Risks and Assumptions
+
+- Assumption: the R2 chain runs only off `main`; `r2-review.sh:57` skips when
+  branch equals base, so the gate first exercises real work on a feature branch,
+  not on this activation commit.
+- Assumption: the DeepSeek fallback stays second-line — `r2.backends=codex,antigravity,openai`
+  is already global and this spec does not re-tune it.
+- Risk: a future `git submodule update --remote` that moves or renames
+  `scripts/r2-review.sh` breaks the shim. The loud-failure criterion is what
+  converts that into a visible error instead of a silently dead gate.
+- Risk: `gh label create` needs write scope on the repository; without it the
+  label criterion fails and the rest still holds.
