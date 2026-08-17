@@ -81,8 +81,13 @@ already applied and is not touched.
   resolves to an existing `my-framework/docs/standards/INDEX.md`.
 - `triage_labels_present`: `gh label list --json name` contains all five of
   `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
-- `submodule_tree_passes_docs_consistency`: `bash
-  my-framework/scripts/test/docs-consistency.sh` exits 0.
+- `submodule_tree_passes_docs_consistency`: run with the working directory
+  inside `my-framework/`, `bash scripts/test/docs-consistency.sh` reports
+  `all checks passed` and exits 0. The working directory is part of the
+  criterion: the script resolves its target through `git rev-parse
+  --show-toplevel`, so invoking it from the parent root resolves to this
+  repository, finds no `docs/standards/INDEX.md`, and exits 0 having checked
+  nothing — a pass that means the opposite of what it appears to mean.
 - `hook_and_tests_are_lf_and_executable`: `git ls-files --eol .githooks/pre-push`
   reports `w/lf` and `git ls-files -s` reports mode `100755` for the hook and
   its test suite.
@@ -96,8 +101,10 @@ git config --get core.hooksPath
 R2_DRYRUN=1 bash .githooks/pre-push
 SKIP_R2_REVIEW=1 bash .githooks/pre-push
 bash scripts/test/pre-push.test.sh
-bash my-framework/scripts/test/docs-consistency.sh
+(cd my-framework && bash scripts/test/docs-consistency.sh)
 gh label list --json name --jq '.[].name'
+git ls-files --eol .githooks/pre-push scripts/test/pre-push.test.sh
+git ls-files -s .githooks/pre-push scripts/test/pre-push.test.sh
 ```
 
 No randomness. Versions: git 2.54.0.windows.1, bash 5.3.9 (Cygwin), gh 2.93.0,
