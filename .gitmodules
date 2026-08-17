@@ -1,0 +1,3 @@
+[submodule "my-framework"]
+	path = my-framework
+	url = https://github.com/LukeSantossz/my-framework.git
