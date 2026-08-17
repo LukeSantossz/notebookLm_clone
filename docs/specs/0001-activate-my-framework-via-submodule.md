@@ -46,6 +46,10 @@ already applied and is not touched.
     copied verbatim.
   - `git config core.hooksPath .githooks` (repo-local).
   - The five triage labels created on `LukeSantossz/notebookLm_clone` via `gh`.
+  - `.gitattributes` pinning `*.sh` and `.githooks/*` to LF. Amended into scope
+    during implementation: this machine sets `core.autocrlf=true`, so without it
+    a fresh clone checks the shim out with CRLF and its shebang fails with
+    "bad interpreter" — the activation this spec delivers would arrive broken.
 - Does NOT include:
   - `CONTEXT.md` — `my-framework/docs/agents/domain.md` says it is created
     lazily once real domain terms are resolved, and this repository has no code
@@ -79,6 +83,9 @@ already applied and is not touched.
   `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 - `submodule_tree_passes_docs_consistency`: `bash
   my-framework/scripts/test/docs-consistency.sh` exits 0.
+- `hook_and_tests_are_lf_and_executable`: `git ls-files --eol .githooks/pre-push`
+  reports `w/lf` and `git ls-files -s` reports mode `100755` for the hook and
+  its test suite.
 
 ## Reproducibility
 
