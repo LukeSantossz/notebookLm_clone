@@ -52,5 +52,16 @@ Accepted.
 - `scripts/setup.sh` is not run from this repository's root: it would set
   `core.hooksPath` to a `.githooks` whose runner it cannot supply, and its
   machine-global steps (`--reviewer`, `--statusline`) are already applied.
+- Non-agentic R2 backends read the wrong reviewer instructions. The `openai`
+  adapter hardcodes `agents_file="$script_dir/../../AGENTS.md"`
+  (`my-framework/scripts/reviewers/openai.sh:37`) and then sets
+  `R2_OPENAI_AGENTS` from it (`:104`), so an outside override cannot reach it.
+  A fallback review therefore receives the submodule's `AGENTS.md` — the correct
+  Reviewer role, but with every path relative to the submodule root and no
+  mention of this repository's `docs/specs/`. The agentic `codex` backend, which
+  heads the chain, does find the root `AGENTS.md` and is unaffected. Fixing this
+  properly means making `agents_file` overridable upstream; patching it here
+  would be exactly the local divergence this ADR rejects, so it stays a
+  limitation until upstream takes the change.
 - The standards advance by moving the submodule pin, and every advance is a
   reviewable commit in this repository's history.
