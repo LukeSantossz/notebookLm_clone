@@ -130,6 +130,22 @@ git ls-files -s .githooks/pre-push scripts/test/pre-push.test.sh
 No randomness. Versions: git 2.54.0.windows.1, bash 5.3.9 (Cygwin), gh 2.93.0,
 node v26.2.0, codex-cli 0.147.0, submodule pinned at `bfcd081` (`v0.3.0`).
 
+## Recorded Process Deviation
+
+Commit `f75cd8d` introduces `.githooks/pre-push` and its test suite together.
+The red-green order was followed in the working tree — the suite was written
+first and observed failing 0/6 before the shim existed — but not in the commit
+history, and `code_conventions.md:71` counts an implementation commit without a
+preceding failing-test commit as a process violation regardless of what happened
+before the commit. R2 (`codex` / `gpt-5.6-terra`) raised it.
+
+It is recorded rather than rewritten. This follows the precedent the framework
+sets for itself in its own README, where two commits violating its
+no-AI-attribution rule are left in place on the reasoning that rewriting
+published history costs more than the defect it corrects, and that the honest
+record of the violation is itself useful. The guard against recurrence is this
+note, not a rewrite.
+
 ## Risks and Assumptions
 
 - Assumption: the R2 chain runs only off `main`; `r2-review.sh:57` skips when
