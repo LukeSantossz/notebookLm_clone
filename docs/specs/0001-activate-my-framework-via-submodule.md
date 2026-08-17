@@ -42,8 +42,18 @@ already applied and is not touched.
   - `CLAUDE.md` at the repo root — the framework's binding-standards block with
     the path adjusted to `my-framework/docs/standards/INDEX.md`, as
     `my-framework/CLAUDE.md:22` instructs.
-  - `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/issue.md` —
-    copied verbatim.
+  - `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/issue.md`.
+    Amended during implementation from "copied verbatim": R2 found the copies
+    point at a root `docs/standards/` this repository deliberately does not
+    have, so every `docs/standards/...` reference in them is repointed at
+    `my-framework/docs/standards/...`.
+  - `AGENTS.md` at the repo root — a shim carrying the Reviewer role and
+    redirecting to `my-framework/AGENTS.md` and the submodule's standards.
+    Amended into scope during implementation: the `codex` adapter runs
+    `codex review` in the parent repository, where an agentic reviewer looks for
+    `AGENTS.md` at the root, so without it the R2 backend reviews with no role
+    definition and no binding standards. R2 found this by reviewing this very
+    branch without them.
   - `git config core.hooksPath .githooks` (repo-local).
   - The five triage labels created on `LukeSantossz/notebookLm_clone` via `gh`.
   - `.gitattributes` pinning `*.sh` and `.githooks/*` to LF. Amended into scope
@@ -57,8 +67,9 @@ already applied and is not touched.
   - `.github/workflows/ci.yml` — it runs `scripts/test/*.sh` of the framework,
     which do not exist here; the submodule's own CI already guards the standards
     tree, and this repository has nothing to test yet.
-  - Any copy of `docs/standards/`, `docs/adr/`, `docs/agents/`, `AGENTS.md`, or
-    the framework's `scripts/` into the repo root.
+  - Any copy of `docs/standards/`, `docs/adr/`, `docs/agents/`, or the
+    framework's `scripts/` into the repo root. The root `AGENTS.md` is a shim
+    that redirects, not a copy of the submodule's.
   - Any change inside the `my-framework/` working tree, or to the pinned commit
     `bfcd081`.
   - Any change to machine-global config (`--global` `r2.*`, status line) —
@@ -88,6 +99,15 @@ already applied and is not touched.
   --show-toplevel`, so invoking it from the parent root resolves to this
   repository, finds no `docs/standards/INDEX.md`, and exits 0 having checked
   nothing — a pass that means the opposite of what it appears to mean.
+- `no_instruction_points_at_an_absent_root_standards_dir`: in the files that
+  tell a reader or an agent where to look — `.github/`, `AGENTS.md`,
+  `CLAUDE.md` — every `docs/standards/` occurrence is prefixed with
+  `my-framework/`. Scoped to those files on purpose: `docs/specs/` and
+  `docs/adr/` name the bare path as prose, describing the copy-adoption layout
+  this repository rejected, and rewriting that prose would falsify the record.
+- `reviewer_instructions_reachable_from_repo_root`: `AGENTS.md` exists at the
+  root and names both `my-framework/AGENTS.md` and
+  `my-framework/docs/standards/INDEX.md`.
 - `hook_and_tests_are_lf_and_executable`: `git ls-files --eol .githooks/pre-push`
   reports `w/lf` and `git ls-files -s` reports mode `100755` for the hook and
   its test suite.
