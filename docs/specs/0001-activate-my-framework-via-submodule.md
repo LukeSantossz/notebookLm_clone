@@ -117,15 +117,13 @@ already applied and is not touched.
 Run from the repository root, `C:\Users\lucas\OneDrive\Desktop\notebookLm_clone`:
 
 ```sh
-git config --get core.hooksPath
-R2_DRYRUN=1 bash .githooks/pre-push
-SKIP_R2_REVIEW=1 bash .githooks/pre-push
-bash scripts/test/pre-push.test.sh
-(cd my-framework && bash scripts/test/docs-consistency.sh)
-gh label list --json name --jq '.[].name'
-git ls-files --eol .githooks/pre-push scripts/test/pre-push.test.sh
-git ls-files -s .githooks/pre-push scripts/test/pre-push.test.sh
+bash scripts/test/pre-push.test.sh    # the shim's behavior
+bash scripts/test/activation.test.sh  # this repository's activation state
 ```
+
+Every Acceptance Criterion above is asserted by one of those two suites, named
+after it. `triage_labels_present` needs an authenticated `gh` and reports as
+skipped without one; every other criterion runs offline.
 
 No randomness. Versions: git 2.54.0.windows.1, bash 5.3.9 (Cygwin), gh 2.93.0,
 node v26.2.0, codex-cli 0.147.0, submodule pinned at `bfcd081` (`v0.3.0`).

@@ -62,10 +62,15 @@ fi
 if [ ! -f "$REPO_ROOT/my-framework/scripts/r2-review.sh" ]; then
   no pre_push_shim_dryrun_resolves_real_chain "the my-framework submodule is not initialized"
 else
-  out=$(cd "$REPO_ROOT" && R2_DRYRUN=1 bash .githooks/pre-push 2>&1); code=$?
+  # R2_BASE is pinned to a sentinel so the case does not depend on which branch
+  # the suite runs from: the runner skips when the current branch equals the
+  # base, which would make this assertion pass or fail by checkout rather than
+  # by behavior. The sentinel also proves the base reaches the adapter.
+  probe=__r2_dryrun_probe__
+  out=$(cd "$REPO_ROOT" && R2_DRYRUN=1 R2_BASE="$probe" bash .githooks/pre-push 2>&1); code=$?
   if [ "$code" -ne 0 ]; then
     no pre_push_shim_dryrun_resolves_real_chain "expected exit 0, got $code: $out"
-  elif ! printf '%s' "$out" | grep -q 'codex review --base'; then
+  elif ! printf '%s' "$out" | grep -q "codex review --base $probe"; then
     no pre_push_shim_dryrun_resolves_real_chain "the resolved backend chain was not printed: $out"
   else
     ok pre_push_shim_dryrun_resolves_real_chain
