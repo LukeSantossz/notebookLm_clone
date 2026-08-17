@@ -1,0 +1,6 @@
+# Shell scripts and git hooks must stay LF so they run under POSIX shells
+# (a CRLF shebang breaks `#!/usr/bin/env bash` with "bad interpreter").
+# This machine sets core.autocrlf=true, so without these rules a fresh clone
+# checks the hook out with CRLF and the R2 gate fails to start.
+*.sh text eol=lf
+.githooks/* text eol=lf

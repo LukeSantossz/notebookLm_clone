@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Pre-push: run the R2 cross-provider review that lives in the my-framework
+# submodule. Activate with: git config core.hooksPath .githooks
+# See my-framework/docs/standards/r2_gate.md for behavior, env vars, and bypass,
+# and docs/adr/0001-adopt-my-framework-by-submodule-shim.md for why this shim
+# exists instead of the submodule's own hook.
+set -u
+
+# Checked before anything else: the bypass exists for the case where the gate
+# cannot or should not run, and an uninitialized submodule is that case. Both
+# names are accepted because the runner itself accepts both.
+if [ "${SKIP_R2_REVIEW:-}" = "1" ] || [ "${SKIP_CODEX_REVIEW:-}" = "1" ]; then
+  printf '[pre-push] bypass set; skipping R2 gate.\n'
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  printf '[pre-push] not inside a git repository; R2 gate could not run.\n' >&2
+  exit 1
+}
+runner="$repo_root/my-framework/scripts/r2-review.sh"
+
+# The submodule's own hook exits 0 when its runner is absent. Here absence means
+# the submodule was never initialized, so a silent skip would leave a dead gate
+# looking healthy. Fail loudly and say how to fix it instead.
+if [ ! -f "$runner" ]; then
+  printf '[pre-push] missing my-framework/scripts/r2-review.sh; the R2 gate cannot run.\n' >&2
+  printf '[pre-push] initialize it with: git submodule update --init --recursive\n' >&2
+  printf '[pre-push] or set SKIP_R2_REVIEW=1 to push without the gate.\n' >&2
+  exit 1
+fi
+
+bash "$runner"
+exit $?
